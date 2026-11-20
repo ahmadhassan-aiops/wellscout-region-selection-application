@@ -32,7 +32,7 @@ def render() -> None:
                  "Errors of 37 to 40 thousand barrels in regions 0 and 2 are large next to points averaging 92 to 95: the models "
                  "rank points far better than they measure them, and ranking is what the decision needs.")
 
-    with ui.panel("C-1.2", "The decision under each model", "gavel", "brief's economics, 10,000 simulated surveys"):
+    with ui.panel("C-1.2", "The decision under each model", "gavel", main=True, sub="brief's economics, 10,000 simulated surveys"):
         rows = ""
         for m in MODELS:
             for r in REGIONS:

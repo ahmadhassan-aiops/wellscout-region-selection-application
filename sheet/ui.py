@@ -30,8 +30,10 @@ header[data-testid="stHeader"] {{ background: var(--paper); }}
         -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }}
 
 /* Drawing sheets: a white sheet in a double frame */
-[data-testid="stVerticalBlock"][data-test-scroll-behavior] {{ border: 1.5px solid var(--ink) !important; border-radius: 0 !important;
-    background: var(--panel); box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--ink); margin: 4px; }}
+[data-testid="stVerticalBlock"][data-test-scroll-behavior] {{ border: 1.2px solid var(--ink) !important; border-radius: 0 !important;
+    background: var(--panel); box-shadow: 3px 3px 0 rgba(19, 41, 75, .08); margin: 4px; }}
+/* Primary sheets (keyed "main_*") get the drawing's double frame */
+[class*="st-key-main_"] {{ border-width: 1.5px !important; box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px var(--ink) !important; margin: 4px; }}
 
 /* Sheet index (navigation) */
 [data-testid="stHorizontalBlock"]:has(.brand) {{ background: var(--panel); border: 1.5px solid var(--ink); padding: 0; gap: 0;
@@ -57,7 +59,7 @@ header[data-testid="stHeader"] {{ background: var(--paper); }}
 .dwg span {{ font-family: var(--mono); font-size: .74rem; padding: .2rem .55rem; letter-spacing: .04em; }}
 .dwg span:first-child {{ background: var(--ink); color: #fff; font-weight: 600; }}
 .title {{ font-family: var(--head); font-size: 2.5rem; font-weight: 700; margin: 0; line-height: 1.08; color: var(--ink); }}
-.lead {{ color: var(--muted); font-size: 1rem; line-height: 1.6; max-width: 860px; margin: .55rem 0 1.2rem; }}
+.lead {{ color: var(--muted); font-size: 1.05rem; line-height: 1.6; max-width: 780px; margin: .55rem 0 1.2rem; }}
 .lead b {{ color: var(--ink); }}
 
 /* Title block at the top of each sheet */
@@ -68,7 +70,7 @@ header[data-testid="stHeader"] {{ background: var(--paper); }}
           padding: .5rem .8rem .45rem; align-self: center; line-height: 1.2; }}
 .tb .ic {{ border-left: 1px solid var(--line); display: grid; place-items: center; padding: 0 .75rem; color: var(--accent); }}
 .tb .ic .msr {{ font-size: 1.35rem; }}
-.sub {{ font-family: var(--mono); font-size: .76rem; color: var(--muted); margin: -.25rem 0 .85rem; line-height: 1.5; }}
+.sub {{ font-family: var(--body); font-size: .88rem; color: var(--muted); margin: -.25rem 0 .85rem; line-height: 1.5; }}
 
 /* Figures in title-block cells */
 .cells {{ display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); border: 1.5px solid var(--ink); background: var(--panel);
@@ -77,7 +79,7 @@ header[data-testid="stHeader"] {{ background: var(--paper); }}
 .cell {{ padding: .5rem .8rem .6rem; border-left: 1px solid var(--line); }}
 .cell:first-child {{ border-left: none; }}
 .cell.hl {{ background: var(--accent-soft); }}
-.cell-l {{ font-family: var(--mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }}
+.cell-l {{ font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }}
 .cell-v {{ font-family: var(--head); font-size: 1.75rem; font-weight: 700; margin: .1rem 0; line-height: 1.1; }}
 .cell-n {{ font-size: .78rem; color: var(--faint); margin: 0; line-height: 1.4; }}
 
@@ -106,6 +108,51 @@ header[data-testid="stHeader"] {{ background: var(--paper); }}
 .reg .verdict.ok {{ color: var(--gain); }} .reg .verdict.no {{ color: var(--loss); }}
 .reg .verdict.pick {{ background: var(--accent-soft); color: var(--accent); border-top: 2px solid var(--accent); }}
 .reg .verdict .msr {{ font-size: 1.15rem; }}
+
+/* The answer: one column per model */
+.answer {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1.5px solid var(--ink); }}
+@media (max-width: 820px) {{ .answer {{ grid-template-columns: 1fr; }} }}
+.answer > div {{ padding: .9rem 1.1rem 1rem; border-left: 1px solid var(--line); position: relative; }}
+.answer > div:first-child {{ border-left: none; }}
+.answer .m {{ font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }}
+.answer .k {{ font-size: .82rem; color: var(--faint); margin: .1rem 0 .6rem; }}
+.answer .r {{ font-family: var(--head); font-size: 2.3rem; font-weight: 700; margin: 0; line-height: 1; color: var(--c); display: flex; align-items: center; gap: .5rem; }}
+.answer .r .msr {{ font-size: 1.8rem; color: var(--ink); }}
+.answer .f {{ display: flex; gap: 1.2rem; margin: .7rem 0 0; font-size: .86rem; color: var(--muted); }}
+.answer .f b {{ font-family: var(--mono); color: var(--ink); font-size: 1rem; }}
+.answer .tag {{ position: absolute; top: .8rem; right: .9rem; font-family: var(--mono); font-size: .66rem; letter-spacing: .06em; text-transform: uppercase;
+                border: 1px solid var(--line); padding: .05rem .4rem; color: var(--muted); }}
+.takeaway {{ display: flex; gap: .7rem; align-items: flex-start; margin: .9rem 0 0; padding: .7rem .9rem; background: var(--accent-soft);
+             border-left: 4px solid var(--accent); font-size: .98rem; line-height: 1.55; }}
+.takeaway .msr {{ color: var(--accent); font-size: 1.4rem; }}
+
+/* Region cards with a mini profit distribution and a risk gauge */
+.rgrid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; }}
+@media (max-width: 820px) {{ .rgrid {{ grid-template-columns: 1fr; }} }}
+.rc {{ border: 1.2px solid var(--ink); background: var(--panel); display: flex; flex-direction: column; }}
+.rc.pick {{ outline: 3px solid var(--accent); outline-offset: 2px; }}
+.rc-h {{ display: flex; justify-content: space-between; align-items: center; background: var(--c); color: #fff; padding: .45rem .75rem; }}
+.rc-h b {{ font-family: var(--head); font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; }}
+.rc-h span {{ font-family: var(--mono); font-size: .72rem; }}
+.rc-b {{ padding: .7rem .8rem .2rem; }}
+.rc-v {{ font-family: var(--head); font-size: 1.9rem; font-weight: 700; margin: 0; line-height: 1; }}
+.rc-v small {{ font-family: var(--body); font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: .35rem; }}
+.rc-i {{ font-size: .8rem; color: var(--muted); margin: .25rem 0 .5rem; font-family: var(--mono); }}
+.spark {{ position: relative; display: flex; align-items: flex-end; gap: 1px; height: 64px; border-bottom: 1px solid var(--line); }}
+.spark i {{ flex: 1; display: block; }}
+.spark em {{ position: absolute; top: 0; bottom: -4px; width: 1.5px; background: var(--ink); }}
+.spark-x {{ display: flex; justify-content: space-between; font-family: var(--mono); font-size: .66rem; color: var(--faint); margin: .15rem 0 0; }}
+.gauge {{ margin: .55rem 0 .2rem; }}
+.gauge-t {{ display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); margin: 0 0 .25rem; }}
+.gauge-t b {{ font-family: var(--mono); color: var(--ink); }}
+.gauge-b {{ position: relative; height: 10px; background: #edf1f5; border: 1px solid var(--line); }}
+.gauge-b i {{ position: absolute; left: 0; top: 0; bottom: 0; }}
+.gauge-b em {{ position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); }}
+.rc-f {{ margin-top: auto; padding: .5rem .8rem; border-top: 1px solid var(--line); font-family: var(--head); font-weight: 700; letter-spacing: .05em;
+         text-transform: uppercase; font-size: .88rem; display: flex; gap: .35rem; align-items: center; }}
+.rc-f .msr {{ font-size: 1.1rem; }}
+.rc-f.pick {{ background: var(--accent-soft); color: var(--accent); }}
+.rc-f.ok {{ color: var(--gain); }} .rc-f.no {{ color: var(--loss); }}
 
 /* Tables in drawing style */
 .tbl {{ width: 100%; border-collapse: collapse; font-size: .88rem; border: 1.5px solid var(--ink); }}
@@ -230,8 +277,9 @@ def page(sheet_no: str, sheet_name: str, title: str, lead: str) -> None:
 
 
 @contextmanager
-def panel(no: str, title: str, pictogram: str, sub: str = ""):
-    with st.container(border=True):
+def panel(no: str, title: str, pictogram: str, sub: str = "", main: bool = False):
+    """A drawing sheet; `main` sheets (the page's primary result) get the double frame."""
+    with st.container(border=True, key=f"main_{no.replace('.', '_').replace('-', '_')}" if main else None):
         st.html(f'<div class="tb"><span class="no">{html.escape(no)}</span><p class="t">{html.escape(title)}</p>'
                 f'<span class="ic">{icon(pictogram)}</span></div>' + (f'<p class="sub">{sub}</p>' if sub else ""))
         yield

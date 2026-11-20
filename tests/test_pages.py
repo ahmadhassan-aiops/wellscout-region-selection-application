@@ -30,7 +30,7 @@ def test_decision_models(model):
     at.segmented_control(key="d_model").set_value(model).run()
     assert not at.exception
     region = {"Linear": "1", "Linear + squares": "2", "LightGBM": "2"}[model]
-    assert any(f"Develop region {region}" in h.proto.body for h in at.get("html"))
+    assert any(f"develop <b>region {region}</b>" in h.proto.body for h in at.get("html"))
 
 
 def test_decision_invalid_and_strict_economics():

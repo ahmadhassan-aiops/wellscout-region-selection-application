@@ -57,7 +57,7 @@ def render() -> None:
 
     left, right = st.columns([1.6, 1], gap="medium")
     with left:
-        with ui.panel("A-2.2", "The model's choice", "scatter_plot",
+        with ui.panel("A-2.2", "The model's choice", "scatter_plot", main=True, sub=
                       "each point is one surveyed site: what the model predicted against what it holds; filled points are developed"):
             charts.show(charts.survey(sample, econ.break_even, region), f"survey_{region}_{model}_{no}")
     with right:

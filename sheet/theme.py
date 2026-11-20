@@ -1,8 +1,8 @@
 """WellScout palette and type: an engineering drawing sheet (drafting grid, navy ink, title blocks)."""
 
 PAPER = "#f3f6f9"
-GRID = "#dbe5ef"
-GRID_MAJOR = "#c4d3e2"
+GRID = "#e6edf4"
+GRID_MAJOR = "#d5e0ea"
 PANEL = "#ffffff"
 INK = "#13294b"        # drawing ink (navy)
 MUTED = "#4a5a70"

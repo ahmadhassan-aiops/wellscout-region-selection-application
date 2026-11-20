@@ -22,7 +22,7 @@ def render() -> None:
     stats.append(("Break-even per well", f"{econ.break_even:.1f}", "thousand barrels ($500,000 at $4,500 each)"))
     ui.cells(stats, highlight=3)
 
-    with ui.panel("B-1.1", "Reserves per point", "stacked_bar_chart", "share of each region's points by reserves; dashed: break-even"):
+    with ui.panel("B-1.1", "Reserves per point", "stacked_bar_chart", main=True, sub="share of each region's points by reserves; dashed: break-even"):
         charts.show(charts.histograms(geo, econ.break_even), "hist")
         ui.notes("Regions 0 and 2 spread widely around 92 to 95 thousand barrels; about a third of their points would pay for a well.",
                  "Region 1 is lumpy: its points hold one of 12 values, and its mean is the lowest (69). Yet it is the safest region "

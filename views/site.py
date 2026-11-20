@@ -61,7 +61,7 @@ def render() -> None:
 
     left, right = st.columns([1.3, 1], gap="medium")
     with left:
-        with ui.panel("A-3.2", "Predicted reserves by model", "bar_chart", "thousand barrels; dashed line: what one well must hold to pay for itself"):
+        with ui.panel("A-3.2", "Predicted reserves by model", "bar_chart", main=True, sub="thousand barrels; dashed line: what one well must hold to pay for itself"):
             charts.show(charts.site(preds, econ.break_even, region), f"site_{region}_{f0}_{f1}_{f2}")
     with right:
         with ui.panel("A-3.3", "Would it be developed?", "rule"):

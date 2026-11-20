@@ -1,112 +1,118 @@
-"""Region decision: choose a model and the economics; 10,000 simulated surveys per region give mean profit, interval
-and risk of loss; the brief's rule picks the region."""
+"""Region decision. First the answer (which region each model picks under the brief's economics), then an explorer:
+pick a model, adjust the economics, and read each region's profit distribution and risk against the limit."""
 
 from __future__ import annotations
 
+import numpy as np
 import streamlit as st
 from pydantic import ValidationError
 
-from sheet import charts, data, ui
+from sheet import data, ui
 from sheet import theme as t
 from sheet.data import money
 from wellscout.economics import Economics, choose, summarise
 from wellscout.model import MODELS, REGIONS
 
+TAG = {"Linear": "the brief", "Linear + squares": "still linear", "LightGBM": "beyond the brief"}
+WHY = {"Linear": "straight-line regression on f0, f1, f2",
+       "Linear + squares": "adds squared and cross terms",
+       "LightGBM": "gradient-boosted trees"}
 
-def _settings() -> tuple[str, Economics | None]:
-    model = st.segmented_control("Model that ranks the surveyed points", MODELS, default="Linear", required=True, key="d_model")
-    st.caption(t.MODEL_NOTE[model].capitalize() + ".")
-    a, b, c, d, e = st.columns(5, gap="small")
-    budget = a.number_input("Budget ($ million)", 10.0, 1000.0, 100.0, step=10.0, format="%.0f", key="d_budget")
-    wells = b.number_input("Wells developed", 10, 1000, 200, step=10, key="d_wells")
-    points = c.number_input("Points surveyed", 20, 5000, 500, step=50, key="d_points")
-    price = d.number_input("Revenue per barrel ($)", 1.0, 20.0, 4.5, step=0.5, format="%.1f", key="d_price")
-    risk = e.number_input("Risk limit (%)", 0.5, 20.0, 2.5, step=0.5, format="%.1f", key="d_risk")
+
+def _answer() -> None:
+    """Which region each model picks with the brief's economics (from the saved evaluation)."""
+    meta = data.scout().meta
+    cols = []
+    for m in MODELS:
+        r = meta["choice"][m]
+        s = meta["decision"][f"{m}|{r}"]
+        cols.append(f'<div style="--c:{t.REGION[r]}"><span class="tag">{TAG[m]}</span><p class="m">{m}</p><p class="k">{WHY[m]}</p>'
+                    f'<p class="r">{ui.icon("arrow_forward")}Region {r}</p>'
+                    f'<p class="f"><span>mean profit <b>{money(s["mean"])}</b></span><span>risk of loss <b>{s["risk"]:.1%}</b></span></p></div>')
+    st.html('<div class="answer">' + "".join(cols) + "</div>"
+            f'<div class="takeaway">{ui.icon("lightbulb")}<div>The brief\'s straight-line model can only trust <b>region 1</b>, where '
+            "reserves follow one measurement. Region 2's reserves follow a curve that straight lines miss: models that see it "
+            "pick better wells there and choose <b>region 2</b>, with more profit and, with LightGBM, less risk.</div></div>")
+
+
+def _economics() -> Economics | None:
+    with st.expander("Change the economics (budget, wells, survey size, price, risk limit)", icon=":material/tune:"):
+        a, b, c, d, e = st.columns(5, gap="small")
+        budget = a.number_input("Budget ($ million)", 10.0, 1000.0, 100.0, step=10.0, format="%.0f", key="d_budget")
+        wells = b.number_input("Wells developed", 10, 1000, 200, step=10, key="d_wells")
+        points = c.number_input("Points surveyed", 20, 5000, 500, step=50, key="d_points")
+        price = d.number_input("Revenue per barrel ($)", 1.0, 20.0, 4.5, step=0.5, format="%.1f", key="d_price")
+        risk = e.number_input("Risk limit (%)", 0.5, 20.0, 2.5, step=0.5, format="%.1f", key="d_risk")
     try:
-        econ = Economics(budget=budget * 1e6, wells=int(wells), points=int(points), revenue_per_unit=price * 1000, risk_limit=risk / 100)
+        return Economics(budget=budget * 1e6, wells=int(wells), points=int(points), revenue_per_unit=price * 1000, risk_limit=risk / 100)
     except ValidationError as exc:
         st.error(exc.errors()[0]["msg"].removeprefix("Value error, "), icon=":material/error:")
-        econ = None
-    return model, econ
+        return None
 
 
-def _decision_block(chosen: int | None, s: dict | None, econ: Economics, model: str) -> None:
-    if chosen is None:
-        st.html(f'<div class="decide none"><div><p class="l">Decision</p><p class="v">No region</p><p class="n">every region risks a loss '
-                f'in at least {econ.risk_limit:.1%} of surveys</p></div><div><p class="l">Model</p><p class="v" style="font-size:1.2rem">'
-                f'{model}</p></div><div></div><div></div></div>')
-        return
-    st.html(f'''<div class="decide" style="--c:{t.REGION[chosen]}">
-<div><p class="l">Decision</p><p class="v">Develop region {chosen}</p><p class="n">rule: risk of a loss under {econ.risk_limit:.1%}, then the highest mean profit</p></div>
-<div><p class="l">Mean profit</p><p class="v">{money(s["mean"])}</p><p class="n">over 10,000 simulated surveys</p></div>
-<div><p class="l">95% of surveys</p><p class="v" style="font-size:1.45rem">{money(s["low"])} to {money(s["high"])}</p><p class="n">profit range</p></div>
-<div><p class="l">Risk of a loss</p><p class="v">{s["risk"]:.1%}</p><p class="n">limit {econ.risk_limit:.1%}</p></div>
-</div>''')
+def _spark(p: np.ndarray, edges: np.ndarray, color: str) -> str:
+    """Mini histogram of simulated profits: loss bars in red, profit bars in the region colour, a line at zero."""
+    h, _ = np.histogram(p, bins=edges)
+    h = h / max(h.max(), 1)
+    bars = "".join(f'<i style="height:{max(v * 100, 1.5):.1f}%;background:{t.LOSS if (edges[i] + edges[i + 1]) / 2 < 0 else color};'
+                   f'opacity:{0.6 if (edges[i] + edges[i + 1]) / 2 < 0 else 0.9}"></i>' for i, v in enumerate(h))
+    zero = (0 - edges[0]) / (edges[-1] - edges[0]) * 100
+    return (f'<div class="spark" role="img" aria-label="distribution of simulated profits">{bars}'
+            f'<em style="left:{zero:.1f}%"></em></div><p class="spark-x"><span>{money(edges[0])}</span><span>profit per survey (line: $0)</span>'
+            f'<span>{money(edges[-1])}</span></p>')
 
 
-def _region_card(r: int, s: dict, chosen: int | None, mean_reserves: float) -> str:
+def _card(r: int, s: dict, p: np.ndarray, edges: np.ndarray, chosen: int | None, econ: Economics) -> str:
+    scale = max(0.10, s["risk"] * 1.2, econ.risk_limit * 1.6)
+    fill = t.GAIN if s["passes"] else t.LOSS
     if r == chosen:
-        verdict = f'<div class="verdict pick">{ui.icon("verified")} Chosen</div>'
+        foot = f'<div class="rc-f pick">{ui.icon("verified")} Develop this region</div>'
     elif s["passes"]:
-        verdict = f'<div class="verdict ok">{ui.icon("check_circle")} Passes the risk limit</div>'
+        foot = f'<div class="rc-f ok">{ui.icon("check_circle")} Passes, lower profit</div>'
     else:
-        verdict = f'<div class="verdict no">{ui.icon("cancel")} Fails the risk limit</div>'
-    return (f'<div class="reg"><div class="reg-h" style="--c:{t.REGION[r]}"><b>Region {r}</b><span>mean point {mean_reserves:.1f}</span></div>'
-            f'<dl><dt>Mean profit</dt><dd>{money(s["mean"])}</dd><dt>95% of surveys</dt><dd>{money(s["low"])} to {money(s["high"])}</dd>'
-            f'<dt>Risk of a loss</dt><dd>{s["risk"]:.1%}</dd></dl>{verdict}</div>')
+        foot = f'<div class="rc-f no">{ui.icon("cancel")} Too risky</div>'
+    return (f'<div class="rc{" pick" if r == chosen else ""}"><div class="rc-h" style="--c:{t.REGION[r]}"><b>Region {r}</b>'
+            f'<span>{"chosen" if r == chosen else ""}</span></div><div class="rc-b">'
+            f'<p class="rc-v">{money(s["mean"])}<small>mean profit</small></p>'
+            f'<p class="rc-i">95% of surveys: {money(s["low"])} to {money(s["high"])}</p>{_spark(p, edges, t.REGION[r])}'
+            f'<div class="gauge"><p class="gauge-t"><span>Risk of a loss</span><b>{s["risk"]:.1%}</b></p>'
+            f'<div class="gauge-b"><i style="width:{min(s["risk"] / scale, 1) * 100:.1f}%;background:{fill}"></i>'
+            f'<em style="left:{econ.risk_limit / scale * 100:.1f}%"></em></div>'
+            f'<p class="gauge-t" style="margin-top:.2rem"><span></span><span>limit {econ.risk_limit:.1%}</span></p></div></div>{foot}</div>')
 
 
 def render() -> None:
     ui.page("A-1", "Region decision", "Which region should OilyGiant develop?",
-            "In the chosen region OilyGiant surveys <b>500 points</b>, a model predicts each point's reserves, and the <b>best "
-            "200</b> become wells on a <b>$100 million</b> budget. WellScout repeats that survey 10,000 times on points the "
-            "models never trained on, and applies the rule: keep regions whose <b>risk of a loss is under 2.5%</b>, then "
-            "take the highest mean profit. Change the model or the economics to see the decision move.")
+            "Survey <b>500 points</b>, develop the model's <b>best 200</b> on a <b>$100 million</b> budget, and accept a region only "
+            "if the <b>risk of a loss is under 2.5%</b>. Each answer below comes from 10,000 simulated surveys of points the "
+            "models never trained on.")
 
-    with ui.panel("A-1.1", "Model and economics", "tune"):
-        model, econ = _settings()
-    if econ is None:
-        ui.footer()
-        return
-    key = econ.model_dump_json()
-    summaries = {r: summarise(data.profits(model, r, key), econ.risk_limit) for r in REGIONS}
-    chosen = choose(summaries)
-    _decision_block(chosen, summaries.get(chosen), econ, model)
-    st.html('<div style="height:.9rem"></div>')
+    with ui.panel("A-1.1", "The answer depends on the model", "gavel", "the region each model picks with the brief's economics", main=True):
+        _answer()
 
-    geo = data.geo()
-    with ui.panel("A-1.2", "The three regions under this model", "map",
-                  f"break-even: {econ.break_even:.1f} thousand barrels per well (${econ.cost_per_well:,.0f} ÷ ${econ.revenue_per_unit:,.0f} "
-                  "per thousand barrels)"):
-        st.html('<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem">'
-                + "".join(_region_card(r, summaries[r], chosen, geo.loc[geo["region"] == r, "product"].mean()) for r in REGIONS)
-                + "</div>")
-        ui.notes(f"The average point holds less than the {econ.break_even:.1f} thousand barrels a well needs in every region: profit "
-                 "comes only from picking the best wells, so a region is as good as the model's ranking in it.",
-                 "Risk of a loss is the share of the 10,000 simulated surveys whose 200 wells earn less than the budget.")
-
-    a, b = st.columns([1.35, 1], gap="medium")
-    with a:
-        with ui.panel("A-1.3", "Profit of 10,000 simulated surveys", "bar_chart", "each line is one region; the shaded side is a loss"):
-            charts.show(charts.profit_curves({r: data.profits(model, r, key) for r in REGIONS}, chosen), f"curves_{model}_{key}")
-    with b:
-        with ui.panel("A-1.4", "Same economics, three models", "compare_arrows", "mean profit and risk of loss for each model and region"):
-            rows = []
-            for m in MODELS:
-                ss = {r: summarise(data.profits(m, r, key), econ.risk_limit) for r in REGIONS}
-                c = choose(ss)
-                cells = "".join(f'<td class="n">{money(ss[r]["mean"])}<br><span class="{"ok" if ss[r]["passes"] else "no"}">'
-                                f'{ss[r]["risk"]:.1%}{ui.icon("check" if ss[r]["passes"] else "close")}</span></td>' for r in REGIONS)
-                rows.append(f'<tr class="{"pick" if m == model else ""}"><td>{m}</td>{cells}'
-                            f'<td class="n">{"none" if c is None else ui.swatch(c) + str(c)}</td></tr>')
-            st.html('<table class="tbl tight"><thead><tr><th>Model</th>' + "".join(f'<th class="n">{ui.swatch(r)}R{r}</th>' for r in REGIONS)
-                    + '<th class="n">Chosen</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table>")
-            if econ == Economics():
-                ui.notes("With the brief's economics, the plain linear regression (the brief's model) can only choose region 1, "
-                         "the one region where reserves follow a single feature almost exactly.",
-                         "Region 2's reserves grow with the square of f0 and f1. Squared terms (still a linear regression) and "
-                         "LightGBM see that curve, pick better wells there, and move the decision to region 2.")
-            else:
-                ui.notes("Every model sees the same surveys; only its ranking of the points differs, and with it which wells are "
-                         "developed.")
+    with ui.panel("A-1.2", "Explore the decision", "tune", "pick a model; each card shows the profit of 10,000 surveys (red: a loss) "
+                  "and the risk of a loss against the limit"):
+        model = st.segmented_control("Model that ranks the surveyed points", MODELS, default="Linear", required=True, key="d_model")
+        econ = _economics()
+        if econ is None:
+            ui.footer()
+            return
+        key = econ.model_dump_json()
+        profits = {r: data.profits(model, r, key) for r in REGIONS}
+        summaries = {r: summarise(profits[r], econ.risk_limit) for r in REGIONS}
+        chosen = choose(summaries)
+        lo = min(np.percentile(p, 0.5) for p in profits.values())
+        hi = max(np.percentile(p, 99.5) for p in profits.values())
+        edges = np.linspace(min(lo, -abs(hi) * 0.05), hi, 36)
+        st.html('<div class="rgrid">' + "".join(_card(r, summaries[r], profits[r], edges, chosen, econ) for r in REGIONS) + "</div>")
+        if chosen is None:
+            verdict = f"No region keeps the risk of a loss under {econ.risk_limit:.1%} with {model}."
+        else:
+            s = summaries[chosen]
+            richest = data.geo().groupby("region")["product"].mean().max()
+            verdict = (f"With <b>{model}</b>, develop <b>region {chosen}</b>: mean profit {money(s['mean'])}, risk of a loss "
+                       f"{s['risk']:.1%}. Break-even is {econ.break_even:.1f} thousand barrels per well"
+                       + (", more than the average point holds in any region, so the profit comes from picking the best wells."
+                          if econ.break_even > richest else "."))
+        ui.notes(verdict)
     ui.footer()
